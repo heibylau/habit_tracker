@@ -4,3 +4,4 @@ this is a habit tracker created using kivy by the Data Analytics & Automation Te
 
 ## Team
 Marie
+Faheem
