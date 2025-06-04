@@ -8,16 +8,26 @@ from kivy.uix.togglebutton import ToggleButton
 from kivy.uix.label import Label
 from kivy.clock import Clock
 import json
+import sqlite3
+
+class Habit:
+    def __init__(self, id=99999, name="uninitialized", score=99999):
+        self.id = id
+        self.name = name
+        self.score = score
+        self.doneToday = False
 
 class AppState():
-    habits = [["Floss Teeth", True, 5],
-              ["10000 Steps", False, 30],
-              ["8 Hours Sleep", False, 20],
-              ["2L of Water", False, 30]]
+    # habits = [["Floss Teeth", True, 5],
+    #           ["10000 Steps", False, 30],
+    #           ["8 Hours Sleep", False, 20],
+    #           ["2L of Water", False, 30]]
+    # score = 0
+    # for _, done, habbitScore in habits:
+    #     if (done):
+    #         score += habbitScore
+    habits = []
     score = 0
-    for _, done, habbitScore in habits:
-        if (done):
-            score += habbitScore
 
 class HabitWidget(Widget):
     pass
@@ -30,7 +40,9 @@ class HabitList(BoxLayout):
         super().__init__(orientation='vertical', **kwargs)
         self.state = state  # Save reference to state
         for idx, habit in enumerate(state.habits):
-            text, done, _ = habit
+            # text, done, _ = habit
+            text = habit.name
+            done = habit.doneToday
             row = BoxLayout(orientation='horizontal', size_hint_y=None, height=40)
             label = Label(text=text, size_hint_x=.8)
             if done:
@@ -48,12 +60,19 @@ class HabitList(BoxLayout):
     def toggle_text(self, instance):
         idx = instance.habit_index
         # Update state
-        self.state.habits[idx][1] = instance.state == 'down'
-        self.state.score += self.state.habits[idx][2] * (1 if instance.state == 'down' else -1)
+        self.state.habits[idx].doneToday = instance.state == 'down'
+        self.state.score += self.state.habits[idx].score * (1 if instance.state == 'down' else -1)
         instance.text = 'done' if instance.state == 'down' else 'not done'
 
 class HabitApp(App):
     state = AppState()
+    state.con = sqlite3.connect('habitTracker.db')
+    state.cur = state.con.cursor()
+    state.cur.execute("select id, name, score from Habit")
+    for row in state.cur.fetchall():
+        # state.habits.append([row[1], False, row[2]])
+        habit = Habit(row[0], row[1], row[2])
+        state.habits.append(habit)
     def save_state_to_json(self, dt):
         data = {
             "habits": self.state.habits,
@@ -80,7 +99,7 @@ class HabitApp(App):
         page.add_widget(self.score_label)
         page.add_widget(habit_list)
         Window.size = (dp(187.5), dp(333.5))
-        Clock.schedule_interval(self.save_state_to_json, 3)
+        # Clock.schedule_interval(self.save_state_to_json, 3)
         Clock.schedule_interval(self.update_score_label, 0.5)  # Update label every 0.5 seconds
 
         return page
