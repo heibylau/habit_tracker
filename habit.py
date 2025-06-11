@@ -9,6 +9,8 @@ from kivy.uix.label import Label
 from kivy.clock import Clock
 import json
 import sqlite3
+from datetime import datetime
+import uuid
 
 class Habit:
     def __init__(self, id=99999, name="uninitialized", score=99999):
@@ -43,12 +45,13 @@ class HabitList(BoxLayout):
             # text, done, _ = habit
             text = habit.name
             done = habit.doneToday
+            score=habit.score
             row = BoxLayout(orientation='horizontal', size_hint_y=None, height=40)
             label = Label(text=text, size_hint_x=.8)
             if done:
                 toggle = ToggleButton(text='done', state='down', size_hint_x=.3)
             else:
-                toggle = ToggleButton(text='not done', size_hint_x=.3)
+                toggle = ToggleButton(text=f'+{score}', size_hint_x=.3)
             toggle.habit_index = idx  # Attach index to button
 
             toggle.bind(on_press=self.toggle_text)
@@ -62,7 +65,14 @@ class HabitList(BoxLayout):
         # Update state
         self.state.habits[idx].doneToday = instance.state == 'down'
         self.state.score += self.state.habits[idx].score * (1 if instance.state == 'down' else -1)
-        instance.text = 'done' if instance.state == 'down' else 'not done'
+        instance.text = 'done' if instance.state == 'down' else f'+{self.state.habits[idx].score}'
+        if instance.state=='down':
+            id=uuid.uuid1()
+            date= datetime.now().strftime('%Y-%m-%d')
+            habitid=self.state.habits[idx].id
+            cur=self.state.cur
+            cur.execute('insert into CompletedHabits (ID,HabitID,Date) values (?,?,?)',(str(id),habitid,date))
+            self.state.con.commit()
 
 class HabitApp(App):
     state = AppState()
@@ -96,7 +106,15 @@ class HabitApp(App):
             height=40,
             pos_hint={'x':0,'y':0}
         )
+        self.date_label = Label(
+            text=f"Date: {datetime.now().strftime('%b %d, %Y')}",
+            size_hint_x=1,
+            size_hint_y=None,
+            height=40,
+            pos_hint={'x':0,'y':0.85}
+        )
         page.add_widget(self.score_label)
+        page.add_widget(self.date_label)
         page.add_widget(habit_list)
         Window.size = (dp(187.5), dp(333.5))
         # Clock.schedule_interval(self.save_state_to_json, 3)
