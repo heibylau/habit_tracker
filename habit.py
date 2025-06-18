@@ -11,6 +11,7 @@ import json
 import sqlite3
 from datetime import datetime
 import uuid
+import os
 
 class Habit:
     def __init__(self, id=99999, name="uninitialized", score=99999):
@@ -45,7 +46,7 @@ class HabitList(BoxLayout):
             # text, done, _ = habit
             text = habit.name
             done = habit.doneToday
-            score=habit.score
+            score = habit.score
             row = BoxLayout(orientation='horizontal', size_hint_y=None, height=40)
             label = Label(text=text, size_hint_x=.8)
             if done:
@@ -65,23 +66,52 @@ class HabitList(BoxLayout):
         # Update state
         self.state.habits[idx].doneToday = instance.state == 'down'
         self.state.score += self.state.habits[idx].score * (1 if instance.state == 'down' else -1)
+        self.state.cur.execute(f"update GameState set score = {self.state.score}")
+        self.state.con.commit()
         instance.text = 'done' if instance.state == 'down' else f'+{self.state.habits[idx].score}'
+
+        id=uuid.uuid1()
+        date= datetime.now().strftime('%Y-%m-%d')
+        habitid=self.state.habits[idx].id
+        cur=self.state.cur
+
         if instance.state=='down':
-            id=uuid.uuid1()
-            date= datetime.now().strftime('%Y-%m-%d')
-            habitid=self.state.habits[idx].id
-            cur=self.state.cur
             cur.execute('insert into CompletedHabits (ID,HabitID,Date) values (?,?,?)',(str(id),habitid,date))
+            self.state.con.commit()
+        else:
+            cur.execute('delete from completedHabits where HabitID=? and Date=?', (habitid,date))    
             self.state.con.commit()
 
 class HabitApp(App):
     state = AppState()
+
+    dbinit = not os.path.exists('habitTracker.db')
     state.con = sqlite3.connect('habitTracker.db')
     state.cur = state.con.cursor()
+
+    if dbinit:
+        state.cur.execute('create table GameState (score integer)')
+        state.cur.execute('create table Habit (id integer primary key, name text, score integer)')
+        state.cur.execute('create table CompletedHabits (id text, habitid integer, date text)')
+        state.cur.execute('insert into GameState (score) values (0)')
+        state.cur.execute("insert into Habit (id, name, score) VALUES (1, 'Floss Teeth', 5),(2, '10,000 Steps', 30),(3, '8 Hours of Sleep', 20),(4, '2L of Water', 30)")
+        state.con.commit()
+
+    state.cur.execute("select score from gamestate")
+    state.score = state.cur.fetchone()[0]
+    _ = state.cur.fetchall()
+
     state.cur.execute("select id, name, score from Habit")
     for row in state.cur.fetchall():
         # state.habits.append([row[1], False, row[2]])
         habit = Habit(row[0], row[1], row[2])
+        date = datetime.now().strftime('%Y-%m-%d')
+        habitID = habit.id
+        state.cur.execute("select id from completedHabits WHERE habitid = ? and date = ?",(habitID, date))
+        res = state.cur.fetchall()
+        if len(res) > 0:
+            habit.doneToday = True
+            # state.score += habit.score
         state.habits.append(habit)
     def save_state_to_json(self, dt):
         data = {
