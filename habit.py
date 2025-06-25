@@ -5,11 +5,12 @@ from kivy.uix.floatlayout import FloatLayout
 from kivy.core.window import Window
 from kivy.metrics import dp
 from kivy.uix.togglebutton import ToggleButton
+from kivy.uix.button import Button
 from kivy.uix.label import Label
 from kivy.clock import Clock
 import json
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 import uuid
 import os
 
@@ -42,6 +43,7 @@ class HabitList(BoxLayout):
     def __init__(self, state, **kwargs):
         super().__init__(orientation='vertical', **kwargs)
         self.state = state  # Save reference to state
+        state.habit_toggles = []
         for idx, habit in enumerate(state.habits):
             # text, done, _ = habit
             text = habit.name
@@ -54,7 +56,7 @@ class HabitList(BoxLayout):
             else:
                 toggle = ToggleButton(text=f'+{score}', size_hint_x=.3)
             toggle.habit_index = idx  # Attach index to button
-
+            state.habit_toggles.append(toggle)
             toggle.bind(on_press=self.toggle_text)
 
             row.add_widget(label)
@@ -71,7 +73,7 @@ class HabitList(BoxLayout):
         instance.text = 'done' if instance.state == 'down' else f'+{self.state.habits[idx].score}'
 
         id=uuid.uuid1()
-        date= datetime.now().strftime('%Y-%m-%d')
+        date= self.state.viewDate.strftime('%Y-%m-%d')
         habitid=self.state.habits[idx].id
         cur=self.state.cur
 
@@ -82,8 +84,11 @@ class HabitList(BoxLayout):
             cur.execute('delete from completedHabits where HabitID=? and Date=?', (habitid,date))    
             self.state.con.commit()
 
+
 class HabitApp(App):
     state = AppState()
+
+    state.viewDate = datetime.now()
 
     dbinit = not os.path.exists('habitTracker.db')
     state.con = sqlite3.connect('habitTracker.db')
@@ -105,7 +110,7 @@ class HabitApp(App):
     for row in state.cur.fetchall():
         # state.habits.append([row[1], False, row[2]])
         habit = Habit(row[0], row[1], row[2])
-        date = datetime.now().strftime('%Y-%m-%d')
+        date = state.viewDate.strftime('%Y-%m-%d')
         habitID = habit.id
         state.cur.execute("select id from completedHabits WHERE habitid = ? and date = ?",(habitID, date))
         res = state.cur.fetchall()
@@ -124,6 +129,29 @@ class HabitApp(App):
     def update_score_label(self, dt):
         self.score_label.text = f"Score: {self.state.score}"
 
+    def date_change(self, instance):
+        if instance.text == '<':
+            dateChange = -1
+        self.state.viewDate = self.state.viewDate + timedelta(days=dateChange)
+        self.state.date_label.text = f"Date: {self.state.viewDate.strftime('%b %d, %Y')}"
+        for habit in self.state.habits:
+            habitID = habit.id
+            date = self.state.viewDate.strftime('%Y-%m-%d')
+            self.state.cur.execute("select id from completedHabits WHERE habitid = ? and date = ?",(habitID, date))
+            res = self.state.cur.fetchall()
+            if len(res) > 0:
+                habit.doneToday = True
+            else:
+                habit.doneToday = False
+        for toggle in self.state.habit_toggles:
+            if self.state.habits[toggle.habit_index].doneToday:
+                toggle.text = 'done'
+                toggle.state = 'down'
+            else:
+                toggle.text = f'+{self.state.habits[toggle.habit_index].score}'
+                toggle.state = 'normal'
+        print(self.state.habits[3].doneToday)
+
     def build(self):
         page = HabitLayout()
         habit_widget = HabitWidget()
@@ -136,15 +164,18 @@ class HabitApp(App):
             height=40,
             pos_hint={'x':0,'y':0}
         )
-        self.date_label = Label(
-            text=f"Date: {datetime.now().strftime('%b %d, %Y')}",
+        self.state.date_label = Label(
+            text=f"Date: {self.state.viewDate.strftime('%b %d, %Y')}",
             size_hint_x=1,
             size_hint_y=None,
             height=40,
             pos_hint={'x':0,'y':0.85}
         )
+        self.dateMinus = Button(text="<", size_hint_x=.1, size_hint_y=.05, pos_hint={'x':0,'y':0.85})
+        self.dateMinus.bind(on_press=self.date_change)
+        page.add_widget(self.dateMinus)
         page.add_widget(self.score_label)
-        page.add_widget(self.date_label)
+        page.add_widget(self.state.date_label)
         page.add_widget(habit_list)
         Window.size = (dp(187.5), dp(333.5))
         # Clock.schedule_interval(self.save_state_to_json, 3)
