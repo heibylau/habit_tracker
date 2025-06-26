@@ -9,6 +9,7 @@ Heiby
 Chris
 
 ## TO-DO
+- Remove debug logging when changing days
 - Add buttons to view past days habbit history
 - Add interface to modify habit list
 - Decide on gamified elements
