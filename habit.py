@@ -132,8 +132,17 @@ class HabitApp(App):
     def date_change(self, instance):
         if instance.text == '<':
             dateChange = -1
+        elif instance.text == '>': 
+            dateChange = 1    
+        else:
+            return
         self.state.viewDate = self.state.viewDate + timedelta(days=dateChange)
         self.state.date_label.text = f"Date: {self.state.viewDate.strftime('%b %d, %Y')}"
+        if self.state.viewDate.strftime('%Y-%m-%d') >= datetime.now().strftime('%Y-%m-%d'):
+            self.state.datePlus.disabled = True
+        else:
+            self.state.datePlus.disabled = False
+
         for habit in self.state.habits:
             habitID = habit.id
             date = self.state.viewDate.strftime('%Y-%m-%d')
@@ -150,7 +159,6 @@ class HabitApp(App):
             else:
                 toggle.text = f'+{self.state.habits[toggle.habit_index].score}'
                 toggle.state = 'normal'
-        print(self.state.habits[3].doneToday)
 
     def build(self):
         page = HabitLayout()
@@ -173,7 +181,10 @@ class HabitApp(App):
         )
         self.dateMinus = Button(text="<", size_hint_x=.1, size_hint_y=.05, pos_hint={'x':0,'y':0.85})
         self.dateMinus.bind(on_press=self.date_change)
+        self.state.datePlus = Button(text=">", size_hint_x=.1, size_hint_y=.05, pos_hint={'x':0.9,'y':0.85}, disabled = True )
+        self.state.datePlus.bind(on_press=self.date_change)
         page.add_widget(self.dateMinus)
+        page.add_widget(self.state.datePlus)
         page.add_widget(self.score_label)
         page.add_widget(self.state.date_label)
         page.add_widget(habit_list)
