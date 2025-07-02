@@ -185,6 +185,10 @@ class HabitApp(App):
         self.state.datePlus.bind(on_press=self.date_change)
         page.add_widget(self.dateMinus)
         page.add_widget(self.state.datePlus)
+        self.state.editButton = Button(text="Edit Habits", size_hint_x=.4, size_hint_y=.05, pos_hint={'x':0.3,'y':0.15} )
+        # self.state.datePlus.bind(on_press=self.date_change)
+        page.add_widget(self.state.editButton)
+        
         page.add_widget(self.score_label)
         page.add_widget(self.state.date_label)
         page.add_widget(habit_list)

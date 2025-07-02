@@ -11,10 +11,12 @@ Chris
 ## TO-DO
 - ~~Remove debug logging when changing days~~
 - ~~Add buttons to view past days habbit history~~
-- ||Add interface to modify habit list||
+- Add interface to modify habit list
 - Decide on gamified elements
 - Properly close the database on termination
 - Data visulations (trends)
 - Streaks
 - Achievment System/Badges
 - Notifications
+- Change order of Habits
+- Habit Grouping
