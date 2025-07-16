@@ -2,12 +2,15 @@ from kivy.app import App
 from kivy.uix.widget import Widget
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.floatlayout import FloatLayout
+from kivy.uix.gridlayout import GridLayout
 from kivy.core.window import Window
 from kivy.metrics import dp
 from kivy.uix.togglebutton import ToggleButton
 from kivy.uix.button import Button
 from kivy.uix.label import Label
 from kivy.clock import Clock
+from kivy.uix.popup import Popup
+from kivy.uix.textinput import TextInput
 import json
 import sqlite3
 from datetime import datetime, timedelta
@@ -160,6 +163,38 @@ class HabitApp(App):
                 toggle.text = f'+{self.state.habits[toggle.habit_index].score}'
                 toggle.state = 'normal'
 
+    def delete_habit(self, instance):
+        self.state.cur.execute('DELETE FROM Habit WHERE id = ?', str(instance.hid))
+        self.state.con.commit()
+
+    def change_habits(self, instance):
+        popuproot = BoxLayout(orientation='vertical')
+        # popuproot = BoxLayout(size_hint=(None, None), size=(400,400))
+        # popuproot.add_widget(Label(text='Hellow world')),
+        # popup.add_widget(okbutton)
+        grid = GridLayout(cols=3, row_force_default = True, row_default_height = 40, size_hint_y=0.8, size_hint_x=1)
+        for habit in self.state.habits:
+            grid.add_widget(TextInput(text=habit.name, multiline = False, size_hint_x=3))
+            grid.add_widget(TextInput(text=str(habit.score), multiline = False))
+            b = Button(text='x')
+            b.hid = habit.id 
+            b.bind(on_press=self.delete_habit)
+            grid.add_widget(b)
+
+
+        popuproot.add_widget(grid)
+        okbutton = Button(text='Close', size_hint=(.4, .2))
+        popuproot.add_widget(okbutton)
+
+        popup = Popup(title = 'Change Habits', 
+                    #   content=Label(text='Hellow world'),
+                      content=popuproot,
+                      size_hint=(None, None), size=(400, 400),
+                      auto_dismiss=False)
+        
+        okbutton.bind(on_press=popup.dismiss)
+        popup.open()
+
     def build(self):
         page = HabitLayout()
         habit_widget = HabitWidget()
@@ -185,8 +220,10 @@ class HabitApp(App):
         self.state.datePlus.bind(on_press=self.date_change)
         page.add_widget(self.dateMinus)
         page.add_widget(self.state.datePlus)
+
+
         self.state.editButton = Button(text="Edit Habits", size_hint_x=.4, size_hint_y=.05, pos_hint={'x':0.3,'y':0.15} )
-        # self.state.datePlus.bind(on_press=self.date_change)
+        self.state.editButton.bind(on_press=self.change_habits)
         page.add_widget(self.state.editButton)
         
         page.add_widget(self.score_label)
