@@ -172,20 +172,31 @@ class HabitApp(App):
         # popuproot = BoxLayout(size_hint=(None, None), size=(400,400))
         # popuproot.add_widget(Label(text='Hellow world')),
         # popup.add_widget(okbutton)
-        grid = GridLayout(cols=3, row_force_default = True, row_default_height = 40, size_hint_y=0.8, size_hint_x=1)
+        grid = GridLayout(cols=4, row_force_default = True, row_default_height = 40, size_hint_y=0.8, size_hint_x=1)
         for habit in self.state.habits:
-            grid.add_widget(TextInput(text=habit.name, multiline = False, size_hint_x=3))
-            grid.add_widget(TextInput(text=str(habit.score), multiline = False))
+            habit_id=Label(text=str(habit.id))
+            habit_text= TextInput(text=habit.name, multiline = False, size_hint_x=3)
+            score_text= TextInput(text=str(habit.score), multiline = False, size_hint_x=3)
+            grid.add_widget(habit_id)
+            grid.add_widget(habit_text)
+            grid.add_widget(score_text)
             b = Button(text='x')
             b.hid = habit.id 
             b.bind(on_press=self.delete_habit)
             grid.add_widget(b)
 
+        def on_submit_button_press(instance):
+            habit_input=habit_text.text
+            score_input=score_text.text
+            id=habit_id.text
+            self.state.cur.execute('Replace into Habit (id,name,score) values(?,?,?)',(id,habit_input,score_input))
+            self.state.con.commit()
 
         popuproot.add_widget(grid)
         okbutton = Button(text='Close', size_hint=(.4, .2))
+        submitbutton = Button(text='Submit', size_hint=(.4, .2))
         popuproot.add_widget(okbutton)
-
+        popuproot.add_widget(submitbutton)
         popup = Popup(title = 'Change Habits', 
                     #   content=Label(text='Hellow world'),
                       content=popuproot,
@@ -193,6 +204,7 @@ class HabitApp(App):
                       auto_dismiss=False)
         
         okbutton.bind(on_press=popup.dismiss)
+        submitbutton.bind(on_press=on_submit_button_press)
         popup.open()
 
     def build(self):
