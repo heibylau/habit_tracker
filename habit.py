@@ -173,30 +173,39 @@ class HabitApp(App):
         # popuproot.add_widget(Label(text='Hellow world')),
         # popup.add_widget(okbutton)
         grid = GridLayout(cols=4, row_force_default = True, row_default_height = 40, size_hint_y=0.8, size_hint_x=1)
+        changes = []
         for habit in self.state.habits:
             habit_id=Label(text=str(habit.id))
-            habit_text= TextInput(text=habit.name, multiline = False, size_hint_x=3)
-            score_text= TextInput(text=str(habit.score), multiline = False, size_hint_x=3)
+            habit_text=TextInput(text=habit.name, multiline = False, size_hint_x=3)
+            score_text=TextInput(text=str(habit.score), multiline = False, size_hint_x=3)
             grid.add_widget(habit_id)
             grid.add_widget(habit_text)
             grid.add_widget(score_text)
+            changes.append((habit_id, habit_text, score_text))
             b = Button(text='x')
             b.hid = habit.id 
             b.bind(on_press=self.delete_habit)
             grid.add_widget(b)
 
         def on_submit_button_press(instance):
-            habit_input=habit_text.text
-            score_input=score_text.text
-            id=habit_id.text
-            self.state.cur.execute('Replace into Habit (id,name,score) values(?,?,?)',(id,habit_input,score_input))
-            self.state.con.commit()
+            for change in changes:
+                id=change[0].text
+                habit_input=change[1].text
+                score_input=change[2].text
+                self.state.cur.execute('Replace into Habit (id,name,score) values(?,?,?)',(id,habit_input,score_input))
+                self.state.con.commit()
+            self.reload_habits_from_db()  # <-- Add this line
+            self.refresh_habits()
+            popup.dismiss()
 
         popuproot.add_widget(grid)
-        okbutton = Button(text='Close', size_hint=(.4, .2))
+        okbutton = Button(text='Cancel', size_hint=(.4, .2))
         submitbutton = Button(text='Submit', size_hint=(.4, .2))
-        popuproot.add_widget(okbutton)
-        popuproot.add_widget(submitbutton)
+        bgrid = GridLayout(cols=2, row_force_default = True, row_default_height = 40, size_hint_y=0.8, size_hint_x=1)
+
+        bgrid.add_widget(okbutton)
+        bgrid.add_widget(submitbutton)
+        popuproot.add_widget(bgrid)
         popup = Popup(title = 'Change Habits', 
                     #   content=Label(text='Hellow world'),
                       content=popuproot,
@@ -206,6 +215,24 @@ class HabitApp(App):
         okbutton.bind(on_press=popup.dismiss)
         submitbutton.bind(on_press=on_submit_button_press)
         popup.open()
+
+    def refresh_habits(self):
+        print(self.state.page.remove_widget(self.state.habit_list))
+        self.state.habit_list = HabitList(state=self.state, pos_hint={'x':0,'y':0.50})
+        self.state.page.add_widget(self.state.habit_list)
+
+    def reload_habits_from_db(self):
+        self.state.habits.clear()
+        self.state.cur.execute("select id, name, score from Habit")
+        for row in self.state.cur.fetchall():
+            habit = Habit(row[0], row[1], row[2])
+            date = self.state.viewDate.strftime('%Y-%m-%d')
+            habitID = habit.id
+            self.state.cur.execute("select id from completedHabits WHERE habitid = ? and date = ?",(habitID, date))
+            res = self.state.cur.fetchall()
+            if len(res) > 0:
+                habit.doneToday = True
+            self.state.habits.append(habit)
 
     def build(self):
         page = HabitLayout()
@@ -230,6 +257,8 @@ class HabitApp(App):
         self.dateMinus.bind(on_press=self.date_change)
         self.state.datePlus = Button(text=">", size_hint_x=.1, size_hint_y=.05, pos_hint={'x':0.9,'y':0.85}, disabled = True )
         self.state.datePlus.bind(on_press=self.date_change)
+        self.state.page = page
+        self.state.habit_list = habit_list
         page.add_widget(self.dateMinus)
         page.add_widget(self.state.datePlus)
 
@@ -244,7 +273,7 @@ class HabitApp(App):
         Window.size = (dp(187.5), dp(333.5))
         # Clock.schedule_interval(self.save_state_to_json, 3)
         Clock.schedule_interval(self.update_score_label, 0.5)  # Update label every 0.5 seconds
-
+        self.refresh_habits()
         return page
 
 if __name__ == '__main__':
